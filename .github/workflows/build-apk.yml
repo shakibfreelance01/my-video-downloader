@@ -1,3 +1,4 @@
+
 name: Build My Video Downloader APK
 
 on:
@@ -25,7 +26,6 @@ jobs:
         shell: bash
         run: |
           mkdir -p app/src/main/java/com/shakib/myvideodownloader
-          mkdir -p app/src/main/res/values
 
           cat > settings.gradle <<'EOF'
           pluginManagement {
@@ -75,19 +75,23 @@ jobs:
           <manifest xmlns:android="http://schemas.android.com/apk/res/android">
               <uses-permission android:name="android.permission.INTERNET" />
               <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
               <application
                   android:allowBackup="false"
                   android:label="My Video Downloader"
                   android:usesCleartextTraffic="false"
                   android:theme="@android:style/Theme.Material.Light.NoActionBar">
+
                   <activity
                       android:name=".MainActivity"
                       android:configChanges="orientation|screenSize|keyboardHidden"
                       android:exported="true">
+
                       <intent-filter>
                           <action android:name="android.intent.action.MAIN" />
                           <category android:name="android.intent.category.LAUNCHER" />
                       </intent-filter>
+
                   </activity>
               </application>
           </manifest>
@@ -103,6 +107,7 @@ jobs:
           import android.os.Bundle;
           import android.os.Environment;
           import android.webkit.DownloadListener;
+          import android.webkit.URLUtil;
           import android.webkit.WebChromeClient;
           import android.webkit.WebSettings;
           import android.webkit.WebView;
@@ -110,11 +115,13 @@ jobs:
           import android.widget.Toast;
 
           public class MainActivity extends Activity {
+
               private WebView webView;
 
               @Override
               protected void onCreate(Bundle savedInstanceState) {
                   super.onCreate(savedInstanceState);
+
                   webView = new WebView(this);
                   setContentView(webView);
 
@@ -129,36 +136,75 @@ jobs:
 
                   webView.setDownloadListener(new DownloadListener() {
                       @Override
-                      public void onDownloadStart(String url, String userAgent,
-                              String contentDisposition, String mimeType, long contentLength) {
+                      public void onDownloadStart(
+                              String url,
+                              String userAgent,
+                              String contentDisposition,
+                              String mimeType,
+                              long contentLength) {
+
                           try {
                               DownloadManager.Request request =
                                   new DownloadManager.Request(Uri.parse(url));
+
                               request.setTitle("My Video Downloader");
                               request.setDescription("Downloading video");
+
                               request.setNotificationVisibility(
-                                  DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
-                              String fileName = DownloadManager.Request
-                                  .getFileNameFromUrl(url);
+                                  DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED
+                              );
+
+                              request.setMimeType(mimeType);
+
+                              if (userAgent != null) {
+                                  request.addRequestHeader("User-Agent", userAgent);
+                              }
+
+                              String fileName = URLUtil.guessFileName(
+                                  url, contentDisposition, mimeType
+                              );
+
                               if (fileName == null || fileName.trim().isEmpty()) {
                                   fileName = "my-video";
                               }
+
                               request.setDestinationInExternalPublicDir(
-                                  Environment.DIRECTORY_DOWNLOADS, fileName);
-                              DownloadManager manager = (DownloadManager)
-                                  getSystemService(Context.DOWNLOAD_SERVICE);
+                                  Environment.DIRECTORY_DOWNLOADS,
+                                  fileName
+                              );
+
+                              DownloadManager manager =
+                                  (DownloadManager) getSystemService(
+                                      Context.DOWNLOAD_SERVICE
+                                  );
+
+                              if (manager == null) {
+                                  throw new Exception("Download service unavailable");
+                              }
+
                               manager.enqueue(request);
-                              Toast.makeText(this, "Download started", Toast.LENGTH_SHORT).show();
+
+                              Toast.makeText(
+                                  MainActivity.this,
+                                  "Download started",
+                                  Toast.LENGTH_SHORT
+                              ).show();
+
                           } catch (Exception e) {
-                              Toast.makeText(this,
-                                  "Could not download this link", Toast.LENGTH_LONG).show();
+
+                              Toast.makeText(
+                                  MainActivity.this,
+                                  "Could not download this link",
+                                  Toast.LENGTH_LONG
+                              ).show();
                           }
                       }
                   });
 
                   if (savedInstanceState == null) {
                       webView.loadUrl(
-                          "https://shakibfreelance01.github.io/my-video-downloader/");
+                          "https://shakibfreelance01.github.io/my-video-downloader/"
+                      );
                   } else {
                       webView.restoreState(savedInstanceState);
                   }
