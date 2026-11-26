@@ -1,1 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>My Video Downloader</title>
+<style>
+*{box-sizing:border-box}
+body{
+margin:0;
+font-family:Arial,sans-serif;
+background:#101827;
+color:white;
+text-align:center;
+}
+header{
+background:#172438;
+padding:25px 10px;
+}
+header h1{color:#36d399}
+.container{
+max-width:450px;
+margin:50px auto;
+padding:20px;
+}
+input{
+width:100%;
+padding:15px;
+border:1px solid #53647a;
+border-radius:8px;
+background:#202e43;
+color:white;
+margin:15px 0;
+font-size:16px;
+}
+button{
+width:100%;
+padding:15px;
+border:none;
+border-radius:8px;
+background:#20c997;
+color:#071b18;
+font-size:17px;
+font-weight:bold;
+}
+#message{margin-top:20px}
+.info{
+margin-top:35px;
+color:#b5c2d3;
+line-height:1.7;
+}
+footer{
+margin-top:60px;
+padding:20px;
+color:#9aa9bd;
+}
+</style>
+</head>
+<body>
 
+<header>
+<h1>My Video Downloader</h1>
+<p>Simple & Easy Video Downloads</p>
+</header>
+
+<div class="container">
+<h2>Download Your Video</h2>
+<p>Paste your direct video link below.</p>
+
+<input type="url" id="videoURL"
+placeholder="Paste MP4 video link">
+
+<button onclick="downloadVideo()">
+Download Video
+</button>
+
+<div id="message"></div>
+
+<div class="info">
+Supported formats: MP4, WebM, MOV
+</div>
+</div>
+
+<footer>
+My Video Downloader © 2026
+</footer>
+
+<script>
+function downloadVideo(){
+const url=document.getElementById("videoURL").value.trim();
+const message=document.getElementById("message");
+
+if(!url){
+message.innerText="Please paste a video link!";
+return;
+}
+
+try{
+const link=new URL(url);
+
+if(!["https:","http:"].includes(link.protocol)){
+throw new Error();
+}
+
+if(!/\.(mp4|webm|mov)$/i.test(link.pathname)){
+message.innerText="Please enter a direct video file link.";
+return;
+}
+
+const a=document.createElement("a");
+a.href=link.href;
+a.download="my-video";
+a.target="_blank";
+document.body.appendChild(a);
+a.click();
+a.remove();
+
+message.innerText="Download requested!";
+
+}catch(error){
+message.innerText="Invalid video URL.";
+}
+}
+</script>
+
+</body>
+  </html>
