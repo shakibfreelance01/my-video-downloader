@@ -1,0 +1,200 @@
+name: Build My Video Downloader APK
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - ".github/workflows/build-apk.yml"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.9"
+
+      - name: Create Android project
+        shell: bash
+        run: |
+          mkdir -p app/src/main/java/com/shakib/myvideodownloader
+          mkdir -p app/src/main/res/values
+
+          cat > settings.gradle <<'EOF'
+          pluginManagement {
+              repositories {
+                  google()
+                  mavenCentral()
+                  gradlePluginPortal()
+              }
+          }
+          dependencyResolutionManagement {
+              repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+              repositories {
+                  google()
+                  mavenCentral()
+              }
+          }
+          rootProject.name = "MyVideoDownloader"
+          include(":app")
+          EOF
+
+          cat > build.gradle <<'EOF'
+          plugins {
+              id 'com.android.application' version '8.7.3' apply false
+          }
+          EOF
+
+          cat > app/build.gradle <<'EOF'
+          plugins {
+              id 'com.android.application'
+          }
+
+          android {
+              namespace 'com.shakib.myvideodownloader'
+              compileSdk 35
+
+              defaultConfig {
+                  applicationId 'com.shakib.myvideodownloader'
+                  minSdk 23
+                  targetSdk 35
+                  versionCode 1
+                  versionName '1.0'
+              }
+          }
+          EOF
+
+          cat > app/src/main/AndroidManifest.xml <<'EOF'
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+              <uses-permission android:name="android.permission.INTERNET" />
+              <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+              <application
+                  android:allowBackup="false"
+                  android:label="My Video Downloader"
+                  android:usesCleartextTraffic="false"
+                  android:theme="@android:style/Theme.Material.Light.NoActionBar">
+                  <activity
+                      android:name=".MainActivity"
+                      android:configChanges="orientation|screenSize|keyboardHidden"
+                      android:exported="true">
+                      <intent-filter>
+                          <action android:name="android.intent.action.MAIN" />
+                          <category android:name="android.intent.category.LAUNCHER" />
+                      </intent-filter>
+                  </activity>
+              </application>
+          </manifest>
+          EOF
+
+          cat > app/src/main/java/com/shakib/myvideodownloader/MainActivity.java <<'EOF'
+          package com.shakib.myvideodownloader;
+
+          import android.app.Activity;
+          import android.app.DownloadManager;
+          import android.content.Context;
+          import android.net.Uri;
+          import android.os.Bundle;
+          import android.os.Environment;
+          import android.webkit.DownloadListener;
+          import android.webkit.WebChromeClient;
+          import android.webkit.WebSettings;
+          import android.webkit.WebView;
+          import android.webkit.WebViewClient;
+          import android.widget.Toast;
+
+          public class MainActivity extends Activity {
+              private WebView webView;
+
+              @Override
+              protected void onCreate(Bundle savedInstanceState) {
+                  super.onCreate(savedInstanceState);
+                  webView = new WebView(this);
+                  setContentView(webView);
+
+                  WebSettings settings = webView.getSettings();
+                  settings.setJavaScriptEnabled(true);
+                  settings.setDomStorageEnabled(true);
+                  settings.setSupportZoom(true);
+                  settings.setBuiltInZoomControls(false);
+
+                  webView.setWebViewClient(new WebViewClient());
+                  webView.setWebChromeClient(new WebChromeClient());
+
+                  webView.setDownloadListener(new DownloadListener() {
+                      @Override
+                      public void onDownloadStart(String url, String userAgent,
+                              String contentDisposition, String mimeType, long contentLength) {
+                          try {
+                              DownloadManager.Request request =
+                                  new DownloadManager.Request(Uri.parse(url));
+                              request.setTitle("My Video Downloader");
+                              request.setDescription("Downloading video");
+                              request.setNotificationVisibility(
+                                  DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
+                              String fileName = DownloadManager.Request
+                                  .getFileNameFromUrl(url);
+                              if (fileName == null || fileName.trim().isEmpty()) {
+                                  fileName = "my-video";
+                              }
+                              request.setDestinationInExternalPublicDir(
+                                  Environment.DIRECTORY_DOWNLOADS, fileName);
+                              DownloadManager manager = (DownloadManager)
+                                  getSystemService(Context.DOWNLOAD_SERVICE);
+                              manager.enqueue(request);
+                              Toast.makeText(this, "Download started", Toast.LENGTH_SHORT).show();
+                          } catch (Exception e) {
+                              Toast.makeText(this,
+                                  "Could not download this link", Toast.LENGTH_LONG).show();
+                          }
+                      }
+                  });
+
+                  if (savedInstanceState == null) {
+                      webView.loadUrl(
+                          "https://shakibfreelance01.github.io/my-video-downloader/");
+                  } else {
+                      webView.restoreState(savedInstanceState);
+                  }
+              }
+
+              @Override
+              protected void onSaveInstanceState(Bundle outState) {
+                  super.onSaveInstanceState(outState);
+                  webView.saveState(outState);
+              }
+
+              @Override
+              public void onBackPressed() {
+                  if (webView != null && webView.canGoBack()) {
+                      webView.goBack();
+                  } else {
+                      super.onBackPressed();
+                  }
+              }
+
+              @Override
+              protected void onDestroy() {
+                  if (webView != null) {
+                      webView.destroy();
+                  }
+                  super.onDestroy();
+              }
+          }
+          EOF
+
+      - name: Build debug APK
+        run: gradle assembleDebug
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: My-Video-Downloader-APK
+          path: app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
